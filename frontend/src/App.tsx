@@ -1,26 +1,39 @@
 
+import { useAuth } from "./context/AuthContext";
+import Login from "./pages/Login";
 import "./App.css";
+import Register from "./pages/Register";
 
 function App() {
+  const { user, logout } = useAuth();
+
+  if (!user) {
+    if (window.location.pathname === "/register") {
+      return <Register />;
+    }
+
+    return <Login />;
+  }
   return (
     <div className="app">
       <aside className="sidebar">
         <h1 className="logo">retain<span>.</span></h1>
-
         <p className="nav-heading">WORKSPACE</p>
 
         <nav>
-          <a href="#" className="nav-link active">Dashboard</a>
-          <a href="#" className="nav-link">Transactions</a>
-          <a href="#" className="nav-link">Budgets</a>
-          <a href="#" className="nav-link">Reports</a>
+          <a href="#" className="nav-link active">▦ Dashboard</a>
+          <a href="#" className="nav-link">↔ Transactions</a>
+          <a href="#" className="nav-link">▤ Budgets</a>
+          <a href="#" className="nav-link">▥ Reports</a>
         </nav>
 
         <div className="sidebar-bottom">
-          <div className="user-avatar">R</div>
+          <div className="user-avatar">
+            {user.name.charAt(0).toUpperCase()}
+          </div>
           <div>
-            <strong>Retain User</strong>
-            <p>Personal account</p>
+            <strong>{user.name}</strong>
+            <p>{user.email}</p>
           </div>
         </div>
       </aside>
@@ -31,7 +44,9 @@ function App() {
             <p className="eyebrow">YOUR FINANCES, IN CONTROL</p>
             <h2>Dashboard</h2>
           </div>
-          <button className="profile-button">R</button>
+          <button className="profile-button" onClick={logout}>
+            {user.name.charAt(0).toUpperCase()}
+          </button>
         </header>
 
         <section className="welcome">
@@ -49,19 +64,16 @@ function App() {
             <h3>RWF 0</h3>
             <span className="stat-note">Your spending this month</span>
           </article>
-
           <article className="stat-card">
             <p>Monthly budget</p>
             <h3>RWF 0</h3>
             <span className="stat-note">Your planned spending limit</span>
           </article>
-
           <article className="stat-card">
             <p>Budget remaining</p>
             <h3>RWF 0</h3>
             <span className="stat-note">Available for this month</span>
           </article>
-
           <article className="stat-card">
             <p>Highest expense</p>
             <h3>RWF 0</h3>
@@ -78,7 +90,6 @@ function App() {
               </div>
               <span className="period-label">This month</span>
             </div>
-
             <div className="empty-chart">
               <div className="chart-icon">▥</div>
               <h4>Your spending story starts here</h4>
@@ -93,7 +104,6 @@ function App() {
                 <p>Where your money goes</p>
               </div>
             </div>
-
             <div className="empty-category">
               <div className="category-ring">0%</div>
               <p>No spending data yet.</p>
@@ -109,7 +119,6 @@ function App() {
             </div>
             <button className="secondary-button">View all</button>
           </div>
-
           <div className="empty-transactions">
             <p>No transactions to display yet.</p>
           </div>
