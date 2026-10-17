@@ -32,18 +32,68 @@ interface AuthResponse {
   user: User;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+interface SavedSession {
+  user: User;
+  token: string;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(
+  undefined
+);
 
 const API_URL = "http://localhost:5000/api";
+const SESSION_KEY = "retain_session";
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+export function AuthProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const savedSession = localStorage.getItem(SESSION_KEY);
+
+      if (!savedSession) return null;
+
+      const session: SavedSession = JSON.parse(savedSession);
+      return session.user;
+    } catch {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+  });
+
+  const [token, setToken] = useState<string | null>(() => {
+    try {
+      const savedSession = localStorage.getItem(SESSION_KEY);
+
+      if (!savedSession) return null;
+
+      const session: SavedSession = JSON.parse(savedSession);
+      return session.token;
+    } catch {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+  });
+
+  function saveSession(data: AuthResponse) {
+    const session: SavedSession = {
+      user: data.user,
+      token: data.token,
+    };
+
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    setUser(data.user);
+    setToken(data.token);
+  }
 
   async function login(email: string, password: string) {
     const response = await fetch(`${API_URL}/auth/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ email, password }),
     });
 
@@ -53,8 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(data.message || "Login failed.");
     }
 
-    setUser(data.user);
-    setToken(data.token);
+    saveSession(data);
   }
 
   async function register(
@@ -64,7 +113,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ) {
     const response = await fetch(`${API_URL}/auth/register`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ name, email, password }),
     });
 
@@ -74,11 +125,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(data.message || "Registration failed.");
     }
 
-    setUser(data.user);
-    setToken(data.token);
+    saveSession(data);
   }
 
   function logout() {
+    localStorage.removeItem(SESSION_KEY);
     setUser(null);
     setToken(null);
   }
@@ -96,7 +147,9 @@ export function useAuth() {
   const context = useContext(AuthContext);
 
   if (!context) {
-    throw new Error("useAuth must be used inside AuthProvider.");
+    throw new Error(
+      "useAuth must be used inside AuthProvider."
+    );
   }
 
   return context;
