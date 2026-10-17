@@ -129,7 +129,7 @@ router.put("/:id", protect, async (req, res) => {
       { _id: id, user: req.user.id },
       updates,
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }
     );

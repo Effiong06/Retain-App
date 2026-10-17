@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { AppDispatch, RootState } from "./redux/store";
 import {
@@ -15,6 +15,8 @@ import { useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import { getExpenses } from "./api/expenses";
+import { getBudget, saveBudget } from "./api/budget";
+import type { Budget } from "./api/budget";
 import "./App.css";
 
 function App() {
@@ -31,10 +33,19 @@ function App() {
   const [expensesLoading, setExpensesLoading] = useState(true);
   const [expensesError, setExpensesError] = useState("");
 
+  const [budget, setBudget] = useState<Budget | null>(null);
+  const [budgetInput, setBudgetInput] = useState("");
+  const [budgetLoading, setBudgetLoading] = useState(true);
+  const [budgetSaving, setBudgetSaving] = useState(false);
+  const [budgetError, setBudgetError] = useState("");
+  const [budgetMessage, setBudgetMessage] = useState("");
+
+  // Load the logged-in user's expenses.
   useEffect(() => {
     if (!token) {
       dispatch(setExpenses([]));
       setExpensesLoading(false);
+      setExpensesError("");
       return;
     }
 
@@ -45,7 +56,7 @@ function App() {
         setExpensesLoading(true);
         setExpensesError("");
 
-        const data = await getExpenses(token);
+        const data = await getExpenses(token!);
 
         if (!cancelled) {
           dispatch(setExpenses(data));
@@ -72,8 +83,57 @@ function App() {
     };
   }, [token, dispatch]);
 
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
+  // Load the logged-in user's budget.
+  useEffect(() => {
+    if (!token) {
+      setBudget(null);
+      setBudgetInput("");
+      setBudgetLoading(false);
+      setBudgetError("");
+      setBudgetMessage("");
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadBudget() {
+      try {
+        setBudgetLoading(true);
+        setBudgetError("");
+
+        const savedBudget = await getBudget(token!);
+
+        if (!cancelled) {
+          setBudget(savedBudget);
+          setBudgetInput(
+            savedBudget ? String(savedBudget.monthlyLimit) : ""
+          );
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setBudgetError(
+            error instanceof Error
+              ? error.message
+              : "Failed to load your budget."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setBudgetLoading(false);
+        }
+      }
+    }
+
+    void loadBudget();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const currentDate = new Date();
+  const currentMonth = currentDate.getMonth();
+  const currentYear = currentDate.getFullYear();
 
   const monthlyExpenses = expenses.filter((expense) => {
     const expenseDate = new Date(expense.date);
@@ -94,12 +154,56 @@ function App() {
     0
   );
 
+  const remainingBudget =
+    budget !== null ? budget.monthlyLimit - monthlySpending : null;
+
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-RW", {
       style: "currency",
       currency: "RWF",
       maximumFractionDigits: 0,
     }).format(amount);
+
+  async function handleSaveBudget(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!token) {
+      setBudgetError("Please log in to manage your budget.");
+      return;
+    }
+
+    if (budgetInput.trim() === "") {
+      setBudgetError("Please enter a monthly budget.");
+      return;
+    }
+
+    const monthlyLimit = Number(budgetInput);
+
+    if (!Number.isFinite(monthlyLimit) || monthlyLimit < 0) {
+      setBudgetError("Enter a valid, non-negative budget amount.");
+      return;
+    }
+
+    try {
+      setBudgetSaving(true);
+      setBudgetError("");
+      setBudgetMessage("");
+
+      const savedBudget = await saveBudget(token, monthlyLimit);
+
+      setBudget(savedBudget);
+      setBudgetInput(String(savedBudget.monthlyLimit));
+      setBudgetMessage("Your monthly budget was saved successfully.");
+    } catch (error) {
+      setBudgetError(
+        error instanceof Error
+          ? error.message
+          : "Failed to save your budget."
+      );
+    } finally {
+      setBudgetSaving(false);
+    }
+  }
 
   if (!user) {
     if (window.location.pathname === "/register") {
@@ -185,24 +289,34 @@ function App() {
           <article className="stat-card">
             <p>Monthly spending</p>
             <h3>{formatCurrency(monthlySpending)}</h3>
-            <span className="stat-note">
-              Your spending this month
-            </span>
+            <span className="stat-note">Your spending this month</span>
           </article>
 
           <article className="stat-card">
             <p>Monthly budget</p>
-            <h3>RWF 0</h3>
-            <span className="stat-note">
-              Your planned spending limit
-            </span>
+            <h3>
+              {budgetLoading
+                ? "Loading..."
+                : budget
+                  ? formatCurrency(budget.monthlyLimit)
+                  : "Not set"}
+            </h3>
+            <span className="stat-note">Your planned spending limit</span>
           </article>
 
           <article className="stat-card">
             <p>Budget remaining</p>
-            <h3>RWF 0</h3>
+            <h3>
+              {budgetLoading
+                ? "Loading..."
+                : remainingBudget !== null
+                  ? formatCurrency(remainingBudget)
+                  : "—"}
+            </h3>
             <span className="stat-note">
-              Available for this month
+              {remainingBudget !== null && remainingBudget < 0
+                ? "You have exceeded your monthly budget"
+                : "Available for this month"}
             </span>
           </article>
 
@@ -344,9 +458,7 @@ function App() {
                         {expense.category} · {expense.paymentMethod}
                       </p>
                       <span>
-                        {new Date(expense.date).toLocaleDateString(
-                          "en-GB"
-                        )}
+                        {new Date(expense.date).toLocaleDateString("en-GB")}
                       </span>
                     </div>
 
@@ -359,20 +471,74 @@ function App() {
             )}
           </div>
 
-          {!expensesLoading && !expensesError && expenses.length > 0 && (
-            <p className="stat-note">
-              Showing {filteredExpenses.length} of {expenses.length} expenses
-            </p>
-          )}
+          {!expensesLoading &&
+            !expensesError &&
+            expenses.length > 0 && (
+              <p className="stat-note">
+                Showing {filteredExpenses.length} of {expenses.length} expenses
+              </p>
+            )}
         </section>
 
         <section className="panel" id="budgets">
           <div className="panel-heading">
             <div>
-              <h3>Budgets</h3>
-              <p>Monthly budget management is coming next.</p>
+              <h3>Monthly budget</h3>
+              <p>Set a spending limit for the current month.</p>
             </div>
           </div>
+
+          {budgetLoading ? (
+            <p>Loading your budget...</p>
+          ) : (
+            <form onSubmit={handleSaveBudget} className="budget-form">
+              <label htmlFor="monthlyLimit">Monthly budget (RWF)</label>
+              <input
+                id="monthlyLimit"
+                type="number"
+                min="0"
+                step="1"
+                value={budgetInput}
+                onChange={(event) => {
+                  setBudgetInput(event.target.value);
+                  setBudgetError("");
+                  setBudgetMessage("");
+                }}
+                placeholder="Enter your monthly budget"
+                required
+              />
+
+              <button
+                type="submit"
+                className="primary-button"
+                disabled={budgetSaving}
+              >
+                {budgetSaving
+                  ? "Saving..."
+                  : budget
+                    ? "Update budget"
+                    : "Set budget"}
+              </button>
+            </form>
+          )}
+
+          {budgetError && (
+            <p role="alert" className="form-error">
+              {budgetError}
+            </p>
+          )}
+
+          {budgetMessage && (
+            <p role="status" className="form-success">
+              {budgetMessage}
+            </p>
+          )}
+
+          {!budgetLoading && budget && (
+            <p className="stat-note">
+              Current monthly limit: {formatCurrency(budget.monthlyLimit)}
+            </p>
+          )}
         </section>
 
         <footer>Retain © 2026 · Make your money matter.</footer>
