@@ -8,6 +8,7 @@ import authRoutes from "./routes/authRoutes.js";
 import testRoutes from "./routes/testRoutes.js";
 import expenseRoutes from "./routes/expenseRoutes.js";
 import budgetRoutes from "./routes/budgetRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 
 dotenv.config();
 
@@ -29,11 +30,12 @@ app.use(
 
 app.use(express.json());
 
-// Authentication routes
+// API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/test", testRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/api/budget", budgetRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {

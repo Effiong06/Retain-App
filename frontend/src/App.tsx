@@ -16,7 +16,7 @@ import {
 } from "./redux/expenseSlice";
 import { selectFilteredExpenses } from "./redux/expenseSelectors";
 import Login from "./pages/Login";
-import Register from "./pages/Register";
+import AdminDashboard from "./pages/AdminDashboard";
 import {
   createExpense,
   deleteExpense,
@@ -435,10 +435,11 @@ function App() {
   }
 
   if (!user) {
-    if (window.location.pathname === "/register") {
-      return <Register />;
-    }
     return <Login />;
+  }
+
+  if (user.role === "admin" && token) {
+    return <AdminDashboard />;
   }
 
   const categories = [
