@@ -8,6 +8,10 @@ interface ExpenseState {
   categoryFilter: string;
   paymentMethodFilter: string;
   sortBy: "newest" | "oldest" | "highest" | "lowest";
+  startDate: string;
+  endDate: string;
+  minAmount: string;
+  maxAmount: string;
 }
 
 const initialState: ExpenseState = {
@@ -16,6 +20,10 @@ const initialState: ExpenseState = {
   categoryFilter: "All",
   paymentMethodFilter: "All",
   sortBy: "newest",
+  startDate: "",
+  endDate: "",
+  minAmount: "",
+  maxAmount: "",
 };
 
 const expenseSlice = createSlice({
@@ -48,11 +56,31 @@ const expenseSlice = createSlice({
       state.sortBy = action.payload;
     },
 
+    setStartDate(state, action: PayloadAction<string>) {
+      state.startDate = action.payload;
+    },
+
+    setEndDate(state, action: PayloadAction<string>) {
+      state.endDate = action.payload;
+    },
+
+    setMinAmount(state, action: PayloadAction<string>) {
+      state.minAmount = action.payload;
+    },
+
+    setMaxAmount(state, action: PayloadAction<string>) {
+      state.maxAmount = action.payload;
+    },
+
     clearFilters(state) {
       state.searchTerm = "";
       state.categoryFilter = "All";
       state.paymentMethodFilter = "All";
       state.sortBy = "newest";
+      state.startDate = "";
+      state.endDate = "";
+      state.minAmount = "";
+      state.maxAmount = "";
     },
   },
 });
@@ -63,6 +91,10 @@ export const {
   setCategoryFilter,
   setPaymentMethodFilter,
   setSortBy,
+  setStartDate,
+  setEndDate,
+  setMinAmount,
+  setMaxAmount,
   clearFilters,
 } = expenseSlice.actions;
 

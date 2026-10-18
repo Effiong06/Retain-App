@@ -8,17 +8,27 @@ export const selectFilteredExpenses = (state: RootState) => {
     categoryFilter,
     paymentMethodFilter,
     sortBy,
+    startDate,
+    endDate,
+    minAmount,
+    maxAmount,
   } = state.expenses;
 
   const normalizedSearch = searchTerm.trim().toLowerCase();
 
+  const minimum = minAmount === "" ? null : Number(minAmount);
+  const maximum = maxAmount === "" ? null : Number(maxAmount);
+
   const filteredExpenses = expenses.filter((expense) => {
+    const normalizedDescription = (expense.description || "").toLowerCase();
+    const normalizedNotes = (expense.notes || "").toLowerCase();
+
     const matchesSearch =
       normalizedSearch === "" ||
       expense.title.toLowerCase().includes(normalizedSearch) ||
-      expense.description.toLowerCase().includes(normalizedSearch) ||
+      normalizedDescription.includes(normalizedSearch) ||
       expense.category.toLowerCase().includes(normalizedSearch) ||
-      expense.notes.toLowerCase().includes(normalizedSearch);
+      normalizedNotes.includes(normalizedSearch);
 
     const matchesCategory =
       categoryFilter === "All" ||
@@ -28,20 +38,35 @@ export const selectFilteredExpenses = (state: RootState) => {
       paymentMethodFilter === "All" ||
       expense.paymentMethod === paymentMethodFilter;
 
+    const expenseDate = expense.date.slice(0, 10);
+
+    const matchesStartDate =
+      startDate === "" || expenseDate >= startDate;
+
+    const matchesEndDate =
+      endDate === "" || expenseDate <= endDate;
+
+    const matchesMinAmount =
+      minimum === null || expense.amount >= minimum;
+
+    const matchesMaxAmount =
+      maximum === null || expense.amount <= maximum;
+
     return (
       matchesSearch &&
       matchesCategory &&
-      matchesPaymentMethod
+      matchesPaymentMethod &&
+      matchesStartDate &&
+      matchesEndDate &&
+      matchesMinAmount &&
+      matchesMaxAmount
     );
   });
 
   return [...filteredExpenses].sort((a, b) => {
     switch (sortBy) {
       case "oldest":
-        return (
-          new Date(a.date).getTime() -
-          new Date(b.date).getTime()
-        );
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
 
       case "highest":
         return b.amount - a.amount;
@@ -51,10 +76,7 @@ export const selectFilteredExpenses = (state: RootState) => {
 
       case "newest":
       default:
-        return (
-          new Date(b.date).getTime() -
-          new Date(a.date).getTime()
-        );
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
     }
   });
 };

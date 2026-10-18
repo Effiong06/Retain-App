@@ -1,24 +1,27 @@
-
 import { useEffect, useState, type FormEvent } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useAuth } from "./context/AuthContext";
 import type { AppDispatch, RootState } from "./redux/store";
 import {
-  setExpenses,
-  setSearchTerm,
-  setCategoryFilter,
-  setPaymentMethodFilter,
-  setSortBy,
   clearFilters,
+  setCategoryFilter,
+  setEndDate,
+  setExpenses,
+  setMaxAmount,
+  setMinAmount,
+  setPaymentMethodFilter,
+  setSearchTerm,
+  setSortBy,
+  setStartDate,
 } from "./redux/expenseSlice";
 import { selectFilteredExpenses } from "./redux/expenseSelectors";
-import { useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import {
-  getExpenses,
   createExpense,
-  updateExpense,
   deleteExpense,
+  getExpenses,
+  updateExpense,
 } from "./api/expenses";
 import type { Expense, ExpenseInput } from "./api/expenses";
 import { getBudget, saveBudget } from "./api/budget";
@@ -64,8 +67,44 @@ function App() {
     (state: RootState) => state.expenses.expenses,
   );
   const filteredExpenses = useSelector(selectFilteredExpenses);
-  const { searchTerm, categoryFilter, paymentMethodFilter, sortBy } =
-    useSelector((state: RootState) => state.expenses);
+
+  const {
+    searchTerm,
+    categoryFilter,
+    paymentMethodFilter,
+    sortBy,
+    startDate,
+    endDate,
+    minAmount,
+    maxAmount,
+  } = useSelector((state: RootState) => state.expenses);
+
+  // Pagination: display five filtered expenses per page.
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredExpenses.length / itemsPerPage),
+  );
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedExpenses = filteredExpenses.slice(
+    startIndex,
+    startIndex + itemsPerPage,
+  );
+
+  // Return to the first page when the active filters or sorting change.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    searchTerm,
+    categoryFilter,
+    paymentMethodFilter,
+    sortBy,
+    startDate,
+    endDate,
+    minAmount,
+    maxAmount,
+  ]);
 
   const [expensesLoading, setExpensesLoading] = useState(true);
   const [expensesError, setExpensesError] = useState("");
@@ -105,7 +144,6 @@ function App() {
       try {
         setExpensesLoading(true);
         setExpensesError("");
-
         const data = await getExpenses(token!);
 
         if (!cancelled) {
@@ -150,7 +188,6 @@ function App() {
       try {
         setBudgetLoading(true);
         setBudgetError("");
-
         const savedBudget = await getBudget(token!);
 
         if (!cancelled) {
@@ -187,7 +224,6 @@ function App() {
 
   const monthlyExpenses = expenses.filter((expense) => {
     const expenseDate = new Date(expense.date);
-
     return (
       expenseDate.getMonth() === currentMonth &&
       expenseDate.getFullYear() === currentYear
@@ -228,7 +264,6 @@ function App() {
 
   async function refreshExpenses() {
     if (!token) return;
-
     const data = await getExpenses(token);
     dispatch(setExpenses(data));
   }
@@ -282,8 +317,10 @@ function App() {
       return;
     }
 
-    if (!Number.isFinite(Number(expenseForm.amount)) ||
-        Number(expenseForm.amount) <= 0) {
+    if (
+      !Number.isFinite(Number(expenseForm.amount)) ||
+      Number(expenseForm.amount) <= 0
+    ) {
       setExpenseFormError("Enter an amount greater than zero.");
       return;
     }
@@ -303,10 +340,8 @@ function App() {
 
       if (editingExpenseId) {
         await updateExpense(token, editingExpenseId, payload);
-        setExpenseMessage("Expense updated successfully.");
       } else {
         await createExpense(token, payload);
-        setExpenseMessage("Expense added successfully.");
       }
 
       await refreshExpenses();
@@ -336,14 +371,12 @@ function App() {
     const confirmed = window.confirm(
       `Are you sure you want to delete "${expense.title}"? This cannot be undone.`,
     );
-
     if (!confirmed) return;
 
     try {
       setExpenseDeletingId(expense._id);
       setExpensesError("");
       setExpenseMessage("");
-
       await deleteExpense(token, expense._id);
       await refreshExpenses();
 
@@ -377,7 +410,6 @@ function App() {
     }
 
     const monthlyLimit = Number(budgetInput);
-
     if (!Number.isFinite(monthlyLimit) || monthlyLimit < 0) {
       setBudgetError("Enter a valid, non-negative budget amount.");
       return;
@@ -387,9 +419,7 @@ function App() {
       setBudgetSaving(true);
       setBudgetError("");
       setBudgetMessage("");
-
       const savedBudget = await saveBudget(token, monthlyLimit);
-
       setBudget(savedBudget);
       setBudgetInput(String(savedBudget.monthlyLimit));
       setBudgetMessage("Your monthly budget was saved successfully.");
@@ -408,7 +438,6 @@ function App() {
     if (window.location.pathname === "/register") {
       return <Register />;
     }
-
     return <Login />;
   }
 
@@ -434,27 +463,17 @@ function App() {
         </h1>
 
         <p className="nav-heading">WORKSPACE</p>
-
         <nav>
-          <a href="/" className="nav-link active">
-            Dashboard
-          </a>
-          <a href="#transactions" className="nav-link">
-            Transactions
-          </a>
-          <a href="#budgets" className="nav-link">
-            Budgets
-          </a>
-          <a href="#reports" className="nav-link">
-            Reports
-          </a>
+          <a href="/" className="nav-link active">Dashboard</a>
+          <a href="#transactions" className="nav-link">Transactions</a>
+          <a href="#budgets" className="nav-link">Budgets</a>
+          <a href="#reports" className="nav-link">Reports</a>
         </nav>
 
         <div className="sidebar-bottom">
           <div className="user-avatar">
             {user.name.charAt(0).toUpperCase()}
           </div>
-
           <div>
             <strong>{user.name}</strong>
             <p>{user.email}</p>
@@ -468,7 +487,6 @@ function App() {
             <p className="eyebrow">YOUR FINANCES, IN CONTROL</p>
             <h2>Dashboard</h2>
           </div>
-
           <button
             className="profile-button"
             onClick={logout}
@@ -482,11 +500,8 @@ function App() {
           <div>
             <p className="eyebrow">YOUR FINANCIAL OVERVIEW</p>
             <h2>Take control of your money.</h2>
-            <p>
-              Understand your spending and make every amount count.
-            </p>
+            <p>Understand your spending and make every amount count.</p>
           </div>
-
           <div className="welcome-icon">↗</div>
         </section>
 
@@ -496,7 +511,6 @@ function App() {
             <h3>{formatCurrency(monthlySpending)}</h3>
             <span className="stat-note">Your spending this month</span>
           </article>
-
           <article className="stat-card">
             <p>Monthly budget</p>
             <h3>
@@ -508,7 +522,6 @@ function App() {
             </h3>
             <span className="stat-note">Your planned spending limit</span>
           </article>
-
           <article className="stat-card">
             <p>Budget remaining</p>
             <h3>
@@ -524,13 +537,10 @@ function App() {
                 : "Available for this month"}
             </span>
           </article>
-
           <article className="stat-card">
             <p>Highest expense</p>
             <h3>{formatCurrency(highestExpense)}</h3>
-            <span className="stat-note">
-              Your largest single expense
-            </span>
+            <span className="stat-note">Your largest single expense</span>
           </article>
         </section>
 
@@ -562,7 +572,11 @@ function App() {
                       <div
                         className="category-bar-fill"
                         style={{
-                          width: `${monthlySpending > 0 ? (amount / monthlySpending) * 100 : 0}%`,
+                          width: `${
+                            monthlySpending > 0
+                              ? (amount / monthlySpending) * 100
+                              : 0
+                          }%`,
                         }}
                       />
                     </div>
@@ -593,7 +607,9 @@ function App() {
                       <span>{category}</span>
                       <strong>
                         {monthlySpending > 0
-                          ? `${Math.round((amount / monthlySpending) * 100)}%`
+                          ? `${Math.round(
+                              (amount / monthlySpending) * 100,
+                            )}%`
                           : "0%"}
                       </strong>
                     </div>
@@ -613,7 +629,6 @@ function App() {
               <h3>Transactions</h3>
               <p>Search, filter, sort, and manage your expenses.</p>
             </div>
-
             <button
               type="button"
               className="primary-button"
@@ -772,7 +787,6 @@ function App() {
                       ? "Save changes"
                       : "Add expense"}
                 </button>
-
                 <button
                   type="button"
                   className="secondary-button"
@@ -832,6 +846,46 @@ function App() {
               ))}
             </select>
 
+            <input
+              type="date"
+              aria-label="Start date"
+              title="Start date"
+              value={startDate}
+              max={endDate || undefined}
+              onChange={(event) => dispatch(setStartDate(event.target.value))}
+            />
+
+            <input
+              type="date"
+              aria-label="End date"
+              title="End date"
+              value={endDate}
+              min={startDate || undefined}
+              onChange={(event) => dispatch(setEndDate(event.target.value))}
+            />
+
+            <input
+              type="number"
+              aria-label="Minimum amount"
+              title="Minimum amount (RWF)"
+              placeholder="Min amount"
+              min="0"
+              step="1"
+              value={minAmount}
+              onChange={(event) => dispatch(setMinAmount(event.target.value))}
+            />
+
+            <input
+              type="number"
+              aria-label="Maximum amount"
+              title="Maximum amount (RWF)"
+              placeholder="Max amount"
+              min="0"
+              step="1"
+              value={maxAmount}
+              onChange={(event) => dispatch(setMaxAmount(event.target.value))}
+            />
+
             <select
               aria-label="Sort expenses"
               value={sortBy}
@@ -871,7 +925,7 @@ function App() {
               <p>No expenses match your search or filters.</p>
             ) : (
               <div className="expense-list">
-                {filteredExpenses.map((expense) => (
+                {paginatedExpenses.map((expense) => (
                   <article className="expense-row" key={expense._id}>
                     <div className="expense-details">
                       <strong>{expense.title}</strong>
@@ -917,9 +971,50 @@ function App() {
           </div>
 
           {!expensesLoading && !expensesError && expenses.length > 0 && (
-            <p className="stat-note">
-              Showing {filteredExpenses.length} of {expenses.length} expenses
-            </p>
+            <>
+              <p className="stat-note">
+                Showing{" "}
+                {filteredExpenses.length === 0 ? 0 : startIndex + 1}
+                {"–"}
+                {Math.min(
+                  startIndex + itemsPerPage,
+                  filteredExpenses.length,
+                )}
+                {" of "}
+                {filteredExpenses.length} filtered expenses
+                {" ("}
+                {expenses.length} total
+                {")"}
+              </p>
+
+              {filteredExpenses.length > itemsPerPage && (
+                <div className="pagination-controls">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() =>
+                      setCurrentPage((page) => Math.max(1, page - 1))
+                    }
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </button>
+                  <span className="stat-note">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() =>
+                      setCurrentPage((page) => Math.min(totalPages, page + 1))
+                    }
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </section>
 
@@ -950,7 +1045,6 @@ function App() {
                 placeholder="Enter your monthly budget"
                 required
               />
-
               <button
                 type="submit"
                 className="primary-button"
@@ -970,13 +1064,11 @@ function App() {
               {budgetError}
             </p>
           )}
-
           {budgetMessage && (
             <p role="status" className="form-success">
               {budgetMessage}
             </p>
           )}
-
           {!budgetLoading && budget && (
             <p className="stat-note">
               Current monthly limit: {formatCurrency(budget.monthlyLimit)}
