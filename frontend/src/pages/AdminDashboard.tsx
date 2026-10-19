@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import "./AdminDashboard.css";
 
-const API_URL = "http://localhost:5000/api/admin";
+const API_URL = `${
+  import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+}/admin`;
 
 interface Category {
   _id: string;
